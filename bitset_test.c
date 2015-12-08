@@ -7,6 +7,7 @@
 #include "bitset.h"
 
 #define RUN_TEST(t) { puts("Running " #t); t(); }
+#define VERIFY(x) (assert((x) == OK))
 
 int test_alloc()
 {
@@ -576,6 +577,89 @@ void test_invert()
 	bitset_free(b);
 }
 
+void test_iter_all()
+{
+	struct bitset *b = NULL;
+	struct bitset_iterator iter;
+	int ret, bit, index, on_count=0, n=0;
+
+	/* allocate a bitset with 4 blocks */
+	ret = bitset_alloc(IDSPERBLOCK * 4, &b);
+	assert(ret == OK);
+
+	/* set some bits */
+	VERIFY(bitset_set(b, 10));
+	VERIFY(bitset_set(b, IDSPERBLOCK+100));
+	VERIFY(bitset_set(b, 3*IDSPERBLOCK+400));
+
+	for (bitset_iter_init(&iter, b, BITSET_ITER_ALL);
+		 !bitset_iter_at_end(&iter);
+		 bitset_iter_next(&iter)) 
+	{
+		n++;
+
+		bit = bitset_iter_get(&iter);
+		index = bitset_iter_index(&iter);
+
+		if (index == 10 ||
+			index == IDSPERBLOCK + 100 ||
+			index == 3*IDSPERBLOCK + 400)
+		{
+			assert(bit == 1);
+			on_count++;
+		}
+		else
+		{
+			assert(bit == 0);
+		}
+	}
+
+	assert(n == 4 * IDSPERBLOCK);
+	assert(on_count == 3);
+}
+
+void test_iter_on()
+{
+	struct bitset *b = NULL;
+	struct bitset_iterator iter;
+	int ret, bit, index, on_count=0, n=0;
+
+	/* allocate a bitset with 4 blocks */
+	ret = bitset_alloc(IDSPERBLOCK * 4, &b);
+	assert(ret == OK);
+
+	/* set some bits */
+	VERIFY(bitset_set(b, 1000));
+	VERIFY(bitset_set(b, IDSPERBLOCK+100));
+	VERIFY(bitset_set(b, 3*IDSPERBLOCK+400));
+
+	for (bitset_iter_init(&iter, b, BITSET_ITER_ON);
+		 !bitset_iter_at_end(&iter);
+		 bitset_iter_next(&iter)) 
+	{
+		n++;
+
+		bit = bitset_iter_get(&iter);
+		index = bitset_iter_index(&iter);
+
+		if (index == 1000 ||
+			index == IDSPERBLOCK + 100 ||
+			index == 3*IDSPERBLOCK + 400)
+		{
+			assert(bit == 1);
+			on_count++;
+		}
+		else
+		{
+			/* BITSET_ITER_ON mode should never return an off bit */
+			assert(0);
+		}
+	}
+
+	assert(n == 3);
+	assert(on_count == 3);
+}
+
 int main(int argc, char **argv)
 {
 	RUN_TEST(test_alloc);
@@ -589,6 +673,8 @@ int main(int argc, char **argv)
 	RUN_TEST(test_and);
 	RUN_TEST(test_subtract);
 	RUN_TEST(test_invert);
+	RUN_TEST(test_iter_all);
+	RUN_TEST(test_iter_on);
 
 	return 0;
 }

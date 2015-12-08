@@ -1,6 +1,12 @@
 #ifndef _bitset_h_
 #define _bitset_h_
 
+/* return codes */
+#define OK           0
+#define ERRMEM      -1
+#define ERRINPUT    -2
+#define ERRNOTIMPL  -3
+
 #define BLOCKSIZE			1024
 #define IDSPERBLOCK			(BLOCKSIZE*64)
 #define BLOCKCOUNT(idcount)	(((idcount)+IDSPERBLOCK-1)/IDSPERBLOCK)
@@ -31,11 +37,23 @@ struct bitset {
 	struct bitset_block **blocks;
 };
 
-#define OK           0
-#define ERRMEM      -1
-#define ERRINPUT    -2
-#define ERRNOTIMPL  -3
+/* an object to iterate the bits in the bitset */
+struct bitset_iterator {
+	/* the bitset being iterated */
+	struct bitset *bset;
 
+	/* flags controlling iteration */
+	int flags;
+
+	/* the iteration location */
+	int block_pos;  /* the index of the block */
+	int bit_pos;    /* the index of the bit in the block */
+};
+
+/* iteration control flags */
+#define BITSET_ITER_ALL   0    /* iterate all bits */
+#define BITSET_ITER_ON    1    /* iterate only on (1) bits */
+#define BITSET_ITER_OFF   2    /* iterate only off (0) bits */
 
 
 /* GLOBAL OPERATIONS */
@@ -84,8 +102,6 @@ int bitset_toggle_bit(struct bitset *a, int bit);
 int bitset_test_bit(struct bitset *a, int bit, int *out);
 
 
-
-
 /* SET OPERATIONS */
 
 /* Invert all of the bits in the bitset */
@@ -112,6 +128,14 @@ int bitset_intersect(struct bitset *a, struct bitset *b, struct bitset **r);
 /* Compute A - B and return it as a new bitset */
 int bitset_difference(struct bitset *a, struct bitset *b, struct bitset **r);
 
+
+/* ITERATION */
+
+void bitset_iter_init(struct bitset_iterator *iter, struct bitset *bset, int flags);
+void bitset_iter_next(struct bitset_iterator *iter);
+int bitset_iter_at_end(struct bitset_iterator *iter);
+int bitset_iter_get(struct bitset_iterator *iter);
+int bitset_iter_index(struct bitset_iterator *iter);
 
 #endif
 

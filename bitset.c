@@ -235,6 +235,25 @@ int bitset_set_count(struct bitset *a)
 	return n;
 }
 
+/* find the first allocated block in the bitset at index start or greater
+ * if bset->blocks[start] is an allocated block, then start will be returned
+ * if there is not a block at blocks[start], then the lowest index containing
+ * an allocated block which is greater than start will be returned.
+ * if there is no allocated block, then the value returned will be
+ * equal to bset->block_count */
+static int bitset_find_allocated_block(struct bitset *bset, int start)
+{
+	assert(start >= 0 && start < bset->block_count);
+
+	/* locate the first allocated block in the structure */
+	for (; start < bset->block_count; start++) 
+	{
+		if (bset->blocks[start] != NULL)
+			break;
+	}
+
+	return start;
+}
 
 
 /******************************************************************************
@@ -895,3 +914,126 @@ static void bitset_block_invert(struct bitset_block *b)
 	/* update popcount on the block */
 	b->set_count = IDSPERBLOCK - b->set_count;
 }
+
+
+/* ITERATION */
+
+static void bitset_iter_first(struct bitset_iterator *iter);
+
+void bitset_iter_init(struct bitset_iterator *iter, struct bitset *bset, int flags)
+{		
+	assert(iter != NULL);
+	assert(bset != NULL);
+
+	iter->bset = bset;
+	iter->flags = flags;
+
+	bitset_iter_first(iter);
+}
+
+static void bitset_iter_first(struct bitset_iterator *iter)
+{
+	int i, b;
+	int64_t v;
+	struct bitset_block *block;
+	struct bitest *bset = iter->bset;
+
+	assert(bset != NULL);
+
+	switch (iter->flags)
+	{
+	case BITSET_ITER_ALL:
+		iter->block_pos = 0;
+		iter->bit_pos = 0;
+		break;
+
+	case BITSET_ITER_ON:
+		/* locate the first allocated block in the structure */
+		iter->block_pos = bitset_find_allocated_block(bset, 0);
+		iter->bit_pos = -1;
+	
+		/* see if a block was found */
+		if (iter->block_pos < bset->block_count) 
+		{
+			block = bset->blocks[iter->block_pos];
+			for (i = 0; i < BLOCKSIZE; i++) 
+			{
+				if (block->ints[i] != 0)
+				{
+					v = block->ints[i];
+					for (b = 0; b < 64; b++)
+					{
+						if ((v & 1) == 1)
+							break;
+						v = v >> 1;
+					}
+					assert(b < 64);
+					iter->bit_pos = b;
+					break;
+				}
+			}
+		}
+		break;
+
+	default:
+		assert(!"Invalid flags");
+	}
+}
+
+void bitset_iter_next(struct bitset_iterator *iter)
+{
+	switch (iter->flags)
+	{
+	case BITSET_ITER_ALL:
+		iter->bit_pos++;
+		if (iter->bit_pos == IDSPERBLOCK)
+		{
+			iter->block_pos++;
+			iter->bit_pos = 0;
+		}
+		break;
+
+	case BITSET_ITER_ON:
+		break;
+
+	default:
+		assert(!"Invalid flags");
+	}
+}
+
+int bitset_iter_at_end(struct bitset_iterator *iter)
+{
+	switch (iter->flags)
+	{
+	case BITSET_ITER_ALL:
+		return iter->block_pos >= iter->bset->block_count;
+
+	case BITSET_ITER_ON:
+		return iter->block_pos >= iter->bset->block_count;
+
+	default:
+		assert(!"Invalid flags");
+	}
+
+	return 0;
+}
+
+int bitset_iter_get(struct bitset_iterator *iter)
+{
+	struct bitset_block *block;
+
+	assert(iter->block_pos < iter->bset->block_count);
+	assert(iter->bit_pos < IDSPERBLOCK);
+
+	block = iter->bset->blocks[iter->block_pos];
+	if (block == NULL)
+		return 0;
+
+	return bitset_block_test_bit(block, iter->bit_pos);
+}
+
+int bitset_iter_index(struct bitset_iterator *iter)
+{
+	return iter->block_pos * IDSPERBLOCK + iter->bit_pos;
+}
+
