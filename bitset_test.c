@@ -9,7 +9,7 @@
 #define RUN_TEST(t) { puts("Running " #t); t(); }
 #define VERIFY(x) (assert((x) == OK))
 
-int test_alloc()
+void test_alloc()
 {
 	struct bitset *bset = NULL;
 	int ret;
@@ -31,7 +31,7 @@ int test_alloc()
 	bitset_free(bset);
 }
 
-int test_set_bit()
+void test_set_bit()
 {
 	struct bitset *bset = NULL;
 	int ret;
@@ -65,7 +65,7 @@ int test_set_bit()
 }
 
 
-int test_set_bad_input()
+void test_set_bad_input()
 {
 	struct bitset *bset = NULL;
 	int ret;
@@ -85,7 +85,7 @@ int test_set_bad_input()
 }
 
 
-int test_set_all_bits()
+void test_set_all_bits()
 {
 	struct bitset *bset = NULL;
 	int ret, i, b;
@@ -115,7 +115,7 @@ int test_set_all_bits()
 }
 
 
-int test_clear_bit()
+void test_clear_bit()
 {
 	struct bitset *bset = NULL;
 	int ret;
@@ -152,7 +152,7 @@ int test_clear_bit()
 }
 
 
-int test_toggle_bit()
+void test_toggle_bit()
 {
 	struct bitset *bset = NULL, *d = NULL;
 	int ret;

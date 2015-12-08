@@ -58,7 +58,7 @@ struct bitset_iterator {
 
 /* GLOBAL OPERATIONS */
 
-/* Read the memory allocation counters. The 
+/* Read the memory allocation counters. */
 void bitset_get_alloc_stats(int *allocs, int *bytes);
 
 
@@ -86,6 +86,7 @@ int bitset_bitcount(struct bitset *a);
 /* Get the count of bits in the bitset which are set to 1 */
 int bitset_popcount(struct bitset *a);
 
+int bitset_set_count(struct bitset *a);
 
 /* BIT OPERATIONS */
 

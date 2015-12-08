@@ -936,7 +936,7 @@ static void bitset_iter_first(struct bitset_iterator *iter)
 	int i, b;
 	int64_t v;
 	struct bitset_block *block;
-	struct bitest *bset = iter->bset;
+	struct bitset *bset = iter->bset;
 
 	assert(bset != NULL);
 
