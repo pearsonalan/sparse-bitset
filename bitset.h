@@ -8,7 +8,8 @@
 #define ERRNOTIMPL  -3
 
 #define BLOCKSIZE			1024
-#define IDSPERBLOCK			(BLOCKSIZE*64)
+#define BITSPERINT			64
+#define IDSPERBLOCK			(BLOCKSIZE*BITSPERINT)
 #define BLOCKCOUNT(idcount)	(((idcount)+IDSPERBLOCK-1)/IDSPERBLOCK)
 
 /* bitset_block contains a block of 64*BLOCKSIZE bits */

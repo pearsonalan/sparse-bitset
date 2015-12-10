@@ -915,10 +915,61 @@ static void bitset_block_invert(struct bitset_block *b)
 	b->set_count = IDSPERBLOCK - b->set_count;
 }
 
+/* locate a 1 bit at the given pos or greater.
+ *
+ * pos must satisfy 0 <= pos < IDSPERBLOCK
+ *
+ * the bit number of the first 1 bit at pos or greater is returned.
+ * if no such bit is found, -1 is returned
+ */
+static int bitset_block_find_next_on_bit(struct bitset_block *block, int pos)
+{
+	int n, b;
+	uint64_t v, m;
 
-/* ITERATION */
+	assert(block != NULL);
+	assert(block->ref_count == 1);
+	assert(pos >= 0);
+	assert(pos < IDSPERBLOCK);
+
+	DIVMOD(pos, BITSPERINT, n, b);
+
+	assert(n < BLOCKSIZE);
+	assert(b < BITSPERINT);
+
+	/* iterate through the ints to find a non-zero int */
+	for (; n < BLOCKSIZE; n++, b=0) 
+	{
+		if (block->ints[n] != 0)
+		{
+			v = block->ints[n];
+			for (; b < BITSPERINT; b++)
+			{
+				m = 1ull << b;
+				if ((v & m) == m)
+					break;
+			}
+
+			/* exit the loop if we found an on bit */
+			if (b < BITSPERINT)
+				break;
+		}
+	}
+
+	if (n < BLOCKSIZE)
+		return n*BITSPERINT + b;
+	else
+		return -1;
+}
+
+
+
+/******************************************************************************
+ * ITERATION
+ */
 
 static void bitset_iter_first(struct bitset_iterator *iter);
+static void bitset_iter_next_on_bit(struct bitset_iterator *iter);
 
 void bitset_iter_init(struct bitset_iterator *iter, struct bitset *bset, int flags)
 {		
@@ -933,13 +984,6 @@ void bitset_iter_init(struct bitset_iterator *iter, struct bitset *bset, int fla
 
 static void bitset_iter_first(struct bitset_iterator *iter)
 {
-	int i, b;
-	int64_t v;
-	struct bitset_block *block;
-	struct bitset *bset = iter->bset;
-
-	assert(bset != NULL);
-
 	switch (iter->flags)
 	{
 	case BITSET_ITER_ALL:
@@ -948,31 +992,11 @@ static void bitset_iter_first(struct bitset_iterator *iter)
 		break;
 
 	case BITSET_ITER_ON:
-		/* locate the first allocated block in the structure */
-		iter->block_pos = bitset_find_allocated_block(bset, 0);
+		/* set initial position to before 1st bit of 0th block and
+		 * search for an on bit after that */
+		iter->block_pos = 0;
 		iter->bit_pos = -1;
-	
-		/* see if a block was found */
-		if (iter->block_pos < bset->block_count) 
-		{
-			block = bset->blocks[iter->block_pos];
-			for (i = 0; i < BLOCKSIZE; i++) 
-			{
-				if (block->ints[i] != 0)
-				{
-					v = block->ints[i];
-					for (b = 0; b < 64; b++)
-					{
-						if ((v & 1) == 1)
-							break;
-						v = v >> 1;
-					}
-					assert(b < 64);
-					iter->bit_pos = b;
-					break;
-				}
-			}
-		}
+		bitset_iter_next_on_bit(iter);
 		break;
 
 	default:
@@ -980,8 +1004,75 @@ static void bitset_iter_first(struct bitset_iterator *iter)
 	}
 }
 
+/* bitset_iter_next_on_bit
+ * 
+ * advance the iterator to the next 1 bit after the current position.
+ * the iter position may indicate (0,-1) to be before the first bit.
+ */
+static void bitset_iter_next_on_bit(struct bitset_iterator *iter)
+{
+	struct bitset *bset;
+
+	assert(iter != NULL);
+	assert(iter->bset != NULL);
+	assert(iter->block_pos >= 0);
+	assert(iter->bit_pos >= -1 && iter->bit_pos < IDSPERBLOCK);
+	
+	bset = iter->bset;
+
+	/* advance to the next bit */
+	iter->bit_pos++;
+
+	/* see if that advanced the iterator past the last bit in the block */
+	if (iter->bit_pos == IDSPERBLOCK)
+	{
+		iter->block_pos++;
+		iter->bit_pos = 0;
+	}
+	
+	/* look for an on bit until we've gone through all the blocks */
+	while (iter->block_pos < bset->block_count)
+	{
+		/* check if looking at an allocated block */
+		if (bset->blocks[iter->block_pos] == NULL)
+		{
+			/* move on to the next block */
+			iter->block_pos++;
+			iter->bit_pos = 0;
+		}
+		else
+		{
+			/* find the next on bit in the current block */
+			iter->bit_pos = bitset_block_find_next_on_bit(bset->blocks[iter->block_pos], iter->bit_pos);
+			if (iter->bit_pos == -1)
+			{
+				/* the current block didn't have another on bit after the current
+				 * bit_pos, so move to the next block */
+				iter->block_pos++;
+				iter->bit_pos = 0;
+			}
+			else
+			{
+				/* found an on bit */
+				assert(iter->block_pos >= 0 && iter->block_pos < bset->block_count);
+				assert(iter->bit_pos >= 0 && iter->bit_pos < IDSPERBLOCK);
+				break;
+			}
+		}
+	}
+}
+
+/* bitset_iter_next
+ * 
+ * Public iterator interface to advance the iterator to the
+ * next position. The meaning of the next position for the 
+ * iterator is dependent upon the iterator flags.
+ */
 void bitset_iter_next(struct bitset_iterator *iter)
 {
+	assert(iter != NULL);
+	assert(iter->bset != NULL);
+
 	switch (iter->flags)
 	{
 	case BITSET_ITER_ALL:
@@ -994,6 +1085,7 @@ void bitset_iter_next(struct bitset_iterator *iter)
 		break;
 
 	case BITSET_ITER_ON:
+		bitset_iter_next_on_bit(iter);
 		break;
 
 	default:

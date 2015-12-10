@@ -642,6 +642,8 @@ void test_iter_on()
 		bit = bitset_iter_get(&iter);
 		index = bitset_iter_index(&iter);
 
+		printf("iter test: index=%d, bit=%d\n", index, bit);
+
 		if (index == 1000 ||
 			index == IDSPERBLOCK + 100 ||
 			index == 3*IDSPERBLOCK + 400)
