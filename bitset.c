@@ -211,25 +211,25 @@ exit:
  */
 
 /* get the count of total bits in the bitset */
-int bitset_bitcount(struct bitset *a)
+int bitset_bitcount(struct bitset *b)
 {
-	if (!a)
+	if (!b)
 		return ERRINPUT;
-	return a->bitcount;
+	return b->bitcount;
 }
 
 /* get the count of bits in the bitset which are set to 1 */
-int bitset_set_count(struct bitset *a)
+int bitset_set_count(struct bitset *b)
 {
 	int n, i;
 
-	if (!a)
+	if (!b)
 		return ERRINPUT;
 
-	for (n = 0, i = 0; i < a->block_count; i++)
+	for (n = 0, i = 0; i < b->block_count; i++)
 	{
-		if (a->blocks[i] != NULL)
-			n += a->blocks[i]->set_count;
+		if (b->blocks[i] != NULL)
+			n += b->blocks[i]->set_count;
 	}
 
 	return n;

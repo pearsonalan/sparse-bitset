@@ -82,12 +82,12 @@ int bitset_dup(struct bitset *s, struct bitset **r);
 /* OBJECT INFORMATION */
 
 /* Get the count of total bits in the bitset */
-int bitset_bitcount(struct bitset *a);
+int bitset_bitcount(struct bitset *b);
 
 /* Get the count of bits in the bitset which are set to 1 */
-int bitset_popcount(struct bitset *a);
+int bitset_set_count(struct bitset *b);
+#define bitset_popcount(b) bitset_set_count(b)
 
-int bitset_set_count(struct bitset *a);
 
 /* BIT OPERATIONS */
 
